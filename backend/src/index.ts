@@ -1,27 +1,47 @@
-import express from 'express';
-import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
+import express, { type Request, type Response } from 'express';
 import { ExpressAuth } from '@auth/express';
-import { GoogleProfile } from '@auth/express/providers/google';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
-const app = express();
-const prisma = new PrismaClient();
+dotenv.config();
 
+import { authConfig } from './config/auth.config.js';
+import { errorHandler, errorNotFoundHandler } from './middleware/error.middleware.js'
+import { authenticatedUser, currentSession } from './middleware/auth.middleware.js';
+
+export const app = express();
+
+app.set("trust proxy", true)
+
+// TODO: set logger
+
+// CORS setup
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: 'Content-Type, Authorization',
   credentials: true,
 }));
+
+// Parse JSON bodies
 app.use(express.json());
 
-app.use("/*", ExpressAuth({providers: [GoogleProfile]}));
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
+// Authentication setup
+app.use("/auth/*", ExpressAuth(authConfig));
+
+// Routes
+app.get('/', async (req: Request, res: Response) => {
   res.json({ message: 'Hello from the backend!' });
 });
 
+// Error handlers
+app.use(errorNotFoundHandler);
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`API server running on port ${PORT}`);
 });
